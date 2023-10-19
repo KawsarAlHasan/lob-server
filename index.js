@@ -23,6 +23,115 @@ async function run() {
     const grandCtgCollection = client.db("lob").collection("grandcategory");
     const parentCtgCollection = client.db("lob").collection("parentcategory");
     const childCtgCollection = client.db("lob").collection("childcategory");
+    const headlineCollection = client.db("lob").collection("headline");
+    const usersCollection = client.db("lob").collection("users");
+
+    // get users
+    app.get("/users", async (req, res) => {
+      const users = await usersCollection.find().toArray();
+      res.send(users);
+    });
+
+    app.get("/users/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isAdmin: user?.role === "admin" });
+    });
+
+    // users create
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // make a admin
+    app.put("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    app.put("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: user,
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      const token = jwt.sign(
+        { email: email },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "1h" }
+      );
+      res.send({ result, token });
+    });
+
+    // Headline and start
+    app.get("/headline/search", async (req, res) => {
+      const prntCtgrId = req.query.parentCtgId;
+      const cursor = headlineCollection.find({ parentCtgId: prntCtgrId });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/headline/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await headlineCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.put("/headline/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateHeadline = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          lawHeadline: updateHeadline.lawHeadline,
+          preamble: updateHeadline.preamble,
+        },
+      };
+      const result = await headlineCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    app.post("/headline", async (req, res) => {
+      const newHeadLine = req.body;
+      const result = await headlineCollection.insertOne(newHeadLine);
+      res.send(result);
+    });
+
+    app.delete("/headline/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await headlineCollection.deleteOne(query);
+      res.send(result);
+    });
+    // Headline and end
 
     // start
     // category start
@@ -59,6 +168,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/parentcategory/search", async (req, res) => {
+      const grandCtgrId = req.query.grandCtgId;
+      const cursor = parentCtgCollection.find({ grandCtgId: grandCtgrId });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
     app.get("/parentcategory/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -86,6 +202,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/childcategory/search", async (req, res) => {
+      const parentCtgrId = req.query.parentCtgId;
+      const cursor = childCtgCollection.find({ parentCtgId: parentCtgrId });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
     app.get("/childcategory/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -96,6 +219,25 @@ async function run() {
     app.post("/childcategory", async (req, res) => {
       const newChildCategory = req.body;
       const result = await childCtgCollection.insertOne(newChildCategory);
+      res.send(result);
+    });
+
+    app.put("/childcategory/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateChildCtg = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          sectionsName: updateChildCtg.sectionsName,
+          sectionsDetails: updateChildCtg.sectionsDetails,
+        },
+      };
+      const result = await childCtgCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
       res.send(result);
     });
 
